@@ -1,10 +1,12 @@
+# https://github.com/hashicorp/learn-terraform-provision-gke-cluster/blob/main/gke.tf
+
 variable "gke_username" {
-  default     = ""
+  default     = "foo"
   description = "gke username"
 }
 
 variable "gke_password" {
-  default     = ""
+  default     = "bar"
   description = "gke password"
 }
 
