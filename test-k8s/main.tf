@@ -1,9 +1,17 @@
 terraform {
+    cloud {
+    organization = "hashicorp-support-eng"
+    
+    workspaces {
+      name = "julie-gke-k8s"
+    }
+  }
   required_providers {
     google = {
       source  = "hashicorp/google"
       version = "4.31.0"
     }
+
     kubernetes = {
       source  = "hashicorp/kubernetes"
       version = "2.12.1"
@@ -11,21 +19,22 @@ terraform {
   }
 }
 
+
 variable "cluster_endpoint_url" {}
 variable "cluster_ca_cert" {}
 
-data "terraform_remote_state" "gke" {
-  backend = "local"
+# data "terraform_remote_state" "gke" {
+#   backend = "local"
 
-  config = {
-    path = "../test-gke-cluster/terraform.tfstate"
-  }
-}
+#   config = {
+#     path = "../test-gke-cluster/terraform.tfstate"
+#   }
+# }
 
 # Retrieve GKE cluster information
 provider "google" {
-  project = data.terraform_remote_state.gke.outputs.project_id
-  region  = data.terraform_remote_state.gke.outputs.region
+  project = "hc-4e0a64c8b917486b8ad054b8c76"   #data.terraform_remote_state.gke.outputs.project_id
+  region  = "us-west1"     #data.terraform_remote_state.gke.outputs.region
 }
 
 # Configure kubernetes provider with Oauth2 access token.
@@ -34,14 +43,14 @@ provider "google" {
 data "google_client_config" "default" {}
 
 data "google_container_cluster" "my_cluster" {
-  name     = data.terraform_remote_state.gke.outputs.kubernetes_cluster_name
-  location = "us-west1-c"
+  name     = "hc-4e0a64c8b917486b8ad054b8c76-gke"   #data.terraform_remote_state.gke.outputs.kubernetes_cluster_name
+  location =  "us-west1"  #data.terraform_remote_state.gke.outputs.region
 }
 
 provider "kubernetes" {
-  host  = var.cluster_endpoint_url
+  host  =  "https://${data.google_container_cluster.my_cluster.endpoint}" #var.cluster_endpoint_url
   token = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(var.cluster_ca_cert)
+  cluster_ca_certificate = base64decode(data.google_container_cluster.my_cluster.master_auth[0].cluster_ca_certificate) #base64decode(var.cluster_ca_cert)
 }
 
 resource "kubernetes_deployment" "example" {
