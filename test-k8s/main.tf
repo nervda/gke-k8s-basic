@@ -11,67 +11,67 @@ terraform {
   }
 }
 
-# data "terraform_remote_state" "gke" {
-#   backend = "local"
+variable "cluster_endpoint_url" {}
+variable "cluster_ca_cert" {}
 
-#   config = {
-#     path = "../test-gke-cluster/terraform.tfstate"
-#   }
-# }
+data "terraform_remote_state" "gke" {
+  backend = "local"
 
-# # Retrieve GKE cluster information
-# provider "google" {
-#   project = data.terraform_remote_state.gke.outputs.project_id
-#   region  = data.terraform_remote_state.gke.outputs.region
-# }
+  config = {
+    path = "../test-gke-cluster/terraform.tfstate"
+  }
+}
+
+# Retrieve GKE cluster information
+provider "google" {
+  project = data.terraform_remote_state.gke.outputs.project_id
+  region  = data.terraform_remote_state.gke.outputs.region
+}
 
 # Configure kubernetes provider with Oauth2 access token.
 # https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/client_config
 # This fetches a new token, which will expire in 1 hour.
 data "google_client_config" "default" {}
 
-# data "google_container_cluster" "my_cluster" {
-#   name     = data.terraform_remote_state.gke.outputs.kubernetes_cluster_name
-#   location = data.terraform_remote_state.gke.outputs.region
-# }
+data "google_container_cluster" "my_cluster" {
+  name     = data.terraform_remote_state.gke.outputs.kubernetes_cluster_name
+  location = "us-west1-c"
+}
 
-# provider "kubernetes" {
-#   host = data.terraform_remote_state.gke.outputs.kubernetes_cluster_self_link
-#   client_certificate = data.terraform_remote_state.gke.outputs.kubernetes_cluster_client_certificate
-#   client_key = data.terraform_remote_state.gke.outputs.kubernetes_cluster_client_key
-#   token                  = data.google_client_config.default.access_token
-#   cluster_ca_certificate = base64decode(data.terraform_remote_state.gke.outputs.kubernetes_cluster_ca_certificate)
-# }
+provider "kubernetes" {
+  host  = var.cluster_endpoint_url
+  token = data.google_client_config.default.access_token
+  cluster_ca_certificate = base64decode(var.cluster_ca_cert)
+}
 
-resource "kubernetes_deployment" "nginx" {
+resource "kubernetes_deployment" "example" {
   metadata {
-    name = "scalable-nginx-example"
+    name = "terraform-example"
     labels = {
-      App = "ScalableNginxExample"
+      test = "MyExampleApp"
     }
   }
 
   spec {
-    replicas = 2
+    replicas = 3
+
     selector {
       match_labels = {
-        App = "ScalableNginxExample"
+        test = "MyExampleApp"
       }
     }
+
     template {
       metadata {
         labels = {
-          App = "ScalableNginxExample"
+          test = "MyExampleApp"
         }
       }
+
       spec {
         container {
-          image = "nginx:1.7.8"
+          image = "nginx:1.21.6"
           name  = "example"
-
-          port {
-            container_port = 80
-          }
 
           resources {
             limits = {
@@ -83,8 +83,23 @@ resource "kubernetes_deployment" "nginx" {
               memory = "50Mi"
             }
           }
+
+          liveness_probe {
+            http_get {
+              path = "/"
+              port = 80
+
+              http_header {
+                name  = "X-Custom-Header"
+                value = "Awesome"
+              }
+            }
+
+            initial_delay_seconds = 3
+            period_seconds        = 3
+          }
         }
       }
     }
   }
-}
+} 
