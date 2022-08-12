@@ -13,13 +13,13 @@ provider "google" {
 
 # VPC
 resource "google_compute_network" "vpc" {
-  name                    = "julie-test-vpc"
+  name                    = "will-test-vpc"
   auto_create_subnetworks = "false"
 }
 
 # Subnet
 resource "google_compute_subnetwork" "subnet" {
-  name          = "julie-test-subnet"
+  name          = "will-test-subnet"
   region        = var.region
   network       = google_compute_network.vpc.name
   ip_cidr_range = "10.10.0.0/24"
